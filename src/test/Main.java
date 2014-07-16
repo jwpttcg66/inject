@@ -1,8 +1,5 @@
 package test;
 
-import java.util.Timer;
-import java.util.TimerTask;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,17 +11,8 @@ public class Main {
 	public static void main(String[] args) {
 		LOGGER.info("begin");
 		
+		//Inject初始化
 		InjectContext.initialize("bean.properties");
-
-		Timer timer = new Timer();
-		timer.schedule(new TimerTask() {
-
-			@Override
-			public void run() {
-				TestConfigInterface testConfig = InjectContext.getBean(TestConfigInterface.class);
-				testConfig.print();
-			}
-		}, 100, 2000);
 		
 	}
 

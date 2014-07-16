@@ -120,11 +120,13 @@ public class InjectContext {
 
 			Object obj = getBean(findClazz);
 			if (obj == null) {
-				// 日志,没有该实例，不能替换
+				LOGGER.info("找不到原来实例,不能替换.");
 				return null;
 			}
 			
 			synchronized (obj) {
+				clazzFieldMaps.remove(findClazz);
+				
 				Object instance = clazz.newInstance();
 				injectInstance(instance);
 				postConstruct(instance);
@@ -133,7 +135,24 @@ public class InjectContext {
 				obj = instance;
 				instanceMaps.put(key, instance);
 
-				clazzFieldMaps.remove(findClazz);				
+				// 循环所有注入类，重新绑定一次Field注入。。。。
+				for (Entry<Class<?>, Set<Field>> entry : clazzFieldMaps.entrySet()) {
+					for (Field f : entry.getValue()) {
+						// 优化，判断该field为 当前需要替换的Class<?>
+						Class<?> fieldClass = f.getType();
+
+						if (fieldClass.isInterface()) {
+							if(fieldClass.isAssignableFrom(clazz)) {
+								Object tmpInstance = getBean(entry.getKey());
+								injectField(tmpInstance, f);								
+							}
+						} else if(fieldClass.equals(clazz)) {
+							Object tmpInstance = getBean(entry.getKey());
+							injectField(tmpInstance, f);	
+						}
+					}
+				}
+				
 				return (T) instance;				
 			}
 		} catch (Exception ex) {
