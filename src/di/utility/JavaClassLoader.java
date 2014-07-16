@@ -21,6 +21,56 @@ import org.slf4j.LoggerFactory;
 public class JavaClassLoader extends ClassLoader {
 	private static final Logger LOGGER = LoggerFactory.getLogger(JavaClassLoader.class);
 	
+	/**
+	 * 
+	 * @param packageName		包名+类名
+	 * @param textCode			脚本内容
+	 * @return
+	 * @throws IllegalAccessException
+	 * @throws IOException
+	 * @throws ClassNotFoundException
+	 */
+	public Class<?> javaCode2Clazz(String packageName, String textCode) throws IllegalAccessException, IOException, ClassNotFoundException {
+		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+		DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
+		StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
+
+		JavaFileObject jfile = new JavaSourceFromString(packageName, textCode);
+		List<JavaFileObject> jfiles = new ArrayList<JavaFileObject>();
+		jfiles.add(jfile);
+		List<String> options = new ArrayList<String>();
+
+		options.add("-encoding");
+		options.add("UTF-8");
+//		options.add("-classpath");
+//		options.add(this.classpath);
+		options.add("-d");
+		options.add("bin");
+
+		JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, diagnostics, options, null, jfiles);
+		boolean success = task.call();
+		fileManager.close();
+
+		if (success) {
+			try {
+				Class<?> c = Class.forName(packageName);
+				if (c != null) {
+					return c;
+				} else {
+					return loadScriptClass(packageName);
+				}
+			} catch (Exception e) {
+			}
+		} else {
+			String error = "";
+			for (Diagnostic<?> diagnostic : diagnostics.getDiagnostics()) {
+				error = error + printDiagnostic(diagnostic);
+			}
+			LOGGER.error(error);
+		}
+		return null;
+	}
+	
 	private Class<?> loadScriptClass(String name) throws ClassNotFoundException {
 		try {
 			byte[] bs = loadByteCode(name);
@@ -62,46 +112,6 @@ public class JavaClassLoader extends ClassLoader {
 		}
 	}
 	
-	public Class<?> javaCode2Clazz(String name, String textCode) throws IllegalAccessException, IOException, ClassNotFoundException {
-		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-		DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
-		StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
-
-		JavaFileObject jfile = new JavaSourceFromString(name, textCode);
-		List<JavaFileObject> jfiles = new ArrayList<JavaFileObject>();
-		jfiles.add(jfile);
-		List<String> options = new ArrayList<String>();
-
-		options.add("-encoding");
-		options.add("UTF-8");
-//		options.add("-classpath");
-//		options.add(this.classpath);
-		options.add("-d");
-		options.add("bin");
-
-		JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, diagnostics, options, null, jfiles);
-		boolean success = task.call();
-		fileManager.close();
-
-		if (success) {
-			try {
-				Class<?> c = Class.forName(name);
-				if (c != null) {
-					return c;
-				} else {
-					return loadScriptClass(name);
-				}
-			} catch (Exception e) {
-			}
-		} else {
-			String error = "";
-			for (Diagnostic<?> diagnostic : diagnostics.getDiagnostics()) {
-				error = error + printDiagnostic(diagnostic);
-			}
-			LOGGER.error(error);
-		}
-		return null;
-	}
 
 	private String printDiagnostic(Diagnostic<?> diagnostic) {
 		StringBuffer res = new StringBuffer();
@@ -117,6 +127,11 @@ public class JavaClassLoader extends ClassLoader {
 		return res.toString();
 	}
 	
+	/**
+	 * 
+	 * @author 0x737263
+	 *
+	 */
 	public class JavaSourceFromString extends SimpleJavaFileObject {
 		private String code;
 

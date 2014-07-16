@@ -153,7 +153,7 @@ public class InjectContext {
 	}
 
 	private static String[] getScanPackages() {
-		String cfgPackages = BEAN_CONFIG.getValue("scan.packages");
+		String cfgPackages = BEAN_CONFIG.getValue("inject.scan.packages");
 		String[] packageArray;
 		if (cfgPackages != null && !cfgPackages.isEmpty()) {
 			packageArray = cfgPackages.split(",");

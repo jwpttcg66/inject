@@ -1,4 +1,4 @@
-package di.test;
+package test;
 
 import di.annotation.Config;
 import di.annotation.Inject;
@@ -11,12 +11,10 @@ public class TestConfigImpl implements TestConfigInterface {
 	public String stringValue;
 	@Config("int.test")
 	public int intValue;
-	@Config("int.test")
-	public Integer integerValue;
 	@Config("long.test")
 	public long longValue;
 	@Config("boolean.test")
-	public boolean booleanValue;
+	public boolean boolValue;
 	
 	@Inject
 	public TestSubClazz testSubClazz;
@@ -30,16 +28,13 @@ public class TestConfigImpl implements TestConfigInterface {
 		System.out.println("执行了构造函数");
 	}
 	
-	
 	@Override
 	public void print() {
-		System.out.println(this.stringValue);
-		System.out.println(this.intValue);
-		System.out.println(this.integerValue);
-		System.out.println(this.longValue);
-		System.out.println(this.booleanValue);
-		System.out.println("=============================");
-		System.out.println(this.testSubClazz.stringName); 
+		System.out.println("------------------------------------------------------------------");
+		System.out.println(String.format("this class Name:%s", TestConfigImpl.class));
+		System.out.println(String.format("string:%s int:%s long:%s boolean:%s", this.stringValue, this.intValue, this.longValue, this.boolValue));
+		System.out.println(String.format("inject TestSubClazz %s", this.testSubClazz.stringName));
+		System.out.println("------------------------------------------------------------------");
 	}
 
 	@Override
