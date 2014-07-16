@@ -106,12 +106,13 @@ public class InjectContext {
 
 		try {
 			Class<?> findClazz = clazz;
-			
+			String key = null;
 			Class<?>[] interfacesClazz = clazz.getInterfaces();
 			for (Class<?> interClazz : interfacesClazz) {
-				for (Object instance : instanceMaps.values()) {
-					if (interClazz.isAssignableFrom(instance.getClass())) {
-						findClazz = instance.getClass();
+				for (Entry<String, Object> entry : instanceMaps.entrySet()) {
+					if (interClazz.isAssignableFrom(entry.getValue().getClass())) {
+						key = entry.getKey();
+						findClazz = entry.getValue().getClass();
 						break;
 					}
 				}
@@ -130,7 +131,6 @@ public class InjectContext {
 
 				// 替换后，原来的类有没有消失？
 				obj = instance;
-				String key = getName(clazz);
 				instanceMaps.put(key, instance);
 
 				clazzFieldMaps.remove(findClazz);				

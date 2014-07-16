@@ -1,4 +1,4 @@
-package test;
+package di.test;
 
 public interface TestConfigInterface {
 

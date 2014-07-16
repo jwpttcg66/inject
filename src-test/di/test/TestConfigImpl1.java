@@ -1,11 +1,10 @@
-package test;
+package di.test;
 
 import di.annotation.Config;
 import di.annotation.Inject;
 import di.annotation.PostConstruct;
 
-@Inject
-public class TestConfigImpl implements TestConfigInterface {
+public class TestConfigImpl1 implements TestConfigInterface {
 
 	@Config("string.test")
 	public String stringValue;
@@ -23,11 +22,11 @@ public class TestConfigImpl implements TestConfigInterface {
 	
 	@PostConstruct
 	public void init() {
-		System.out.println("执行了@PostConstruct");
+		System.out.println("[替换后1211]执行了@PostConstruct");
 	}
 	
-	public TestConfigImpl() {
-		System.out.println("执行了构造函数");
+	public TestConfigImpl1() {
+		System.out.println("[替换后1212]执行了构造函数");
 	}
 	
 	
@@ -46,4 +45,5 @@ public class TestConfigImpl implements TestConfigInterface {
 	public TestConfigInterface getInterface() {
 		return testSubClazz.testConfigImpl;
 	}
+	
 }

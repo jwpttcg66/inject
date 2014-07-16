@@ -1,4 +1,4 @@
-package test;
+package di.test;
 
 import di.annotation.Config;
 import di.annotation.Inject;

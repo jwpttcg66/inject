@@ -1,4 +1,4 @@
-package test;
+package di.test;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +10,7 @@ public class Main {
 
 	public static void main(String[] args) {
 		LOGGER.info("begin");
+		
 		InjectContext.initialize("bean.properties");
 
 		TestConfigImpl testConfig = (TestConfigImpl) InjectContext.getBean(TestConfigInterface.class);
