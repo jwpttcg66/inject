@@ -107,8 +107,8 @@ public class InjectContext {
 			Class<?>[] interfacesClazz = clazz.getInterfaces();
 			for (Class<?> interClazz : interfacesClazz) {
 				for (Entry<Class<?>, Object> entry : instanceMaps.entrySet()) {
-					if (interClazz.isAssignableFrom(entry.getValue().getClass())) {
-						oldClazz = entry.getValue().getClass();
+					if (compareClass(interClazz, entry.getKey())) {
+						oldClazz = entry.getKey();
 						break;
 					}
 				}
@@ -129,16 +129,9 @@ public class InjectContext {
 				for (Entry<Class<?>, Set<Field>> entry : clazzFieldMaps.entrySet()) {
 					for (Field f : entry.getValue()) {
 						// 优化，判断该field为 当前需要替换的Class<?>
-						Class<?> fieldClass = f.getType();
-
-						if (fieldClass.isInterface()) {
-							if(fieldClass.isAssignableFrom(clazz)) {
-								Object tmpInstance = getBean(entry.getKey());
-								injectField(tmpInstance, f);								
-							}
-						} else if(fieldClass.equals(clazz)) {
+						if (compareClass(clazz, f.getType())) {
 							Object tmpInstance = getBean(entry.getKey());
-							injectField(tmpInstance, f);	
+							injectField(tmpInstance, f);
 						}
 					}
 				}
@@ -159,14 +152,28 @@ public class InjectContext {
 	
 	
 	// static method---------------------------------------------------
-	
-//	private static String getName(Class<?> clazz) {
-//		Inject inject = clazz.getAnnotation(Inject.class);
-//		if (inject == null || inject.value().equals("")) {
-//			return clazz.getName();
-//		}
-//		return inject.value();
-//	}
+
+
+	private static boolean compareClass(Class<?> clazz1, Class<?> clazz2) {
+		if (clazz1.getName().equals(clazz2.getName())) {
+			return true;
+		}
+
+		if (clazz1.isInterface() && clazz1.isAssignableFrom(clazz2)) {
+			return true;
+		}
+
+		if (clazz2.isInterface() && clazz2.isAssignableFrom(clazz1)) {
+			return true;
+		}
+
+		Inject inject1 = clazz2.getAnnotation(Inject.class);
+		Inject inject2 = clazz1.getAnnotation(Inject.class);
+		if (inject1.value() == inject2.value()) {
+			return true;
+		}
+		return false;
+	}
 
 	private static String[] getScanPackages() {
 		String cfgPackages = BEAN_CONFIG.getValue("inject.scan.packages");

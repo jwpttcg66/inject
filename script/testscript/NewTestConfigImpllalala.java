@@ -33,7 +33,7 @@ public class NewTestConfigImpllalala implements TestConfigInterface {
 	
 	@Override
 	public void print() {
-		LOGGER.info("------------------------------------------------------------------");
+		LOGGER.info("aaaa------------------------------------------------------------------");
 		LOGGER.info("this class Name:{}", NewTestConfigImpllalala.class);
 		LOGGER.info("string:{} int:{} long:{} boolean:{}", this.stringValue, this.intValue, this.longValue, this.boolValue);
 		LOGGER.info("------------------------------------------------------------------");
