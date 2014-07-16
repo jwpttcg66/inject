@@ -22,10 +22,10 @@ public class InjectContext {
 	private static final Logger LOGGER = LoggerFactory.getLogger(InjectContext.class);
 	private static String[] packages = { "com", "test" };
 
-	/** 注入类字段集合 	key:类名,value:字段集合 */
+	/** 注入类字段集合 	key:类,value:字段集合 */
 	private static final Map<Class<?>, Set<Field>> clazzFieldMaps = new ConcurrentHashMap<>();
-	/** 实例类集合 key:fullName,value:实例 类*/
-	private static final Map<String, Object> instanceMaps = new ConcurrentHashMap<>();
+	/** 实例类集合 key:类,value:实例 类*/
+	private static final Map<Class<?>, Object> instanceMaps = new ConcurrentHashMap<>();
 	
 	private static BeanConfig BEAN_CONFIG = new BeanConfig();
 	
@@ -48,12 +48,11 @@ public class InjectContext {
 			List<Class<?>> scanList = ScanClassUtils.scan(getScanPackages(), Inject.class);
 			for (Class<?> clazz : scanList) {
 				Object instance = clazz.newInstance();
-				String key = getName(clazz);
-
-				if (instanceMaps.containsKey(key)) {
-					throw new RuntimeException(String.format("有重复的注入名%s.", key));
+				
+				if (instanceMaps.containsKey(clazz)) {
+					throw new RuntimeException(String.format("有重复的注入名%s.", clazz));
 				}
-				instanceMaps.put(key, instance);
+				instanceMaps.put(clazz, instance);
 			}
 
 			// 配置注入、引用注入
@@ -79,24 +78,23 @@ public class InjectContext {
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> T getBean(Class<T> clazz) {
-		for (Entry<String, Object> entry : instanceMaps.entrySet()) {
+		for (Entry<Class<?>, Object> entry : instanceMaps.entrySet()) {
 			T value = (T) entry.getValue();
 			if (clazz.isInterface() && clazz.isAssignableFrom(value.getClass())) {
 				return value;
 			} else {
-				String name = getName(clazz);
-				if (entry.getKey() == name) {
+				if (entry.getKey().equals(clazz)) {
 					return value;
 				}
 			}
 		}
-		
+
 		return null;
-	}	
+	}
 
 	/**
 	 * 替换正在运行的bean
-	 * @param clazz	需要替换的接口
+	 * @param clazz	需要替换的类
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> T replace(Class<T> clazz) {
@@ -105,35 +103,27 @@ public class InjectContext {
 		}
 
 		try {
-			Class<?> findClazz = clazz;
-			String key = null;
+			Class<?> oldClazz = clazz;
 			Class<?>[] interfacesClazz = clazz.getInterfaces();
 			for (Class<?> interClazz : interfacesClazz) {
-				for (Entry<String, Object> entry : instanceMaps.entrySet()) {
+				for (Entry<Class<?>, Object> entry : instanceMaps.entrySet()) {
 					if (interClazz.isAssignableFrom(entry.getValue().getClass())) {
-						key = entry.getKey();
-						findClazz = entry.getValue().getClass();
+						oldClazz = entry.getValue().getClass();
 						break;
 					}
 				}
 			}
-
-			Object obj = getBean(findClazz);
-			if (obj == null) {
-				LOGGER.info("找不到原来实例,不能替换.");
-				return null;
-			}
 			
-			synchronized (obj) {
-				clazzFieldMaps.remove(findClazz);
+			synchronized (instanceMaps) {
+				clazzFieldMaps.remove(oldClazz);
+				instanceMaps.remove(oldClazz);
 				
 				Object instance = clazz.newInstance();
 				injectInstance(instance);
 				postConstruct(instance);
 
 				// 替换后，原来的类有没有消失？
-				obj = instance;
-				instanceMaps.put(key, instance);
+				instanceMaps.put(clazz, instance);
 
 				// 循环所有注入类，重新绑定一次Field注入。。。。
 				for (Entry<Class<?>, Set<Field>> entry : clazzFieldMaps.entrySet()) {
@@ -153,6 +143,13 @@ public class InjectContext {
 					}
 				}
 				
+				if (LOGGER.isDebugEnabled()) {
+					for (Class<?> cls : instanceMaps.keySet()) {
+						LOGGER.debug("inject instance:{}", cls);
+					}
+				}
+				
+				
 				return (T) instance;				
 			}
 		} catch (Exception ex) {
@@ -163,13 +160,13 @@ public class InjectContext {
 	
 	// static method---------------------------------------------------
 	
-	private static String getName(Class<?> clazz) {
-		Inject inject = clazz.getAnnotation(Inject.class);
-		if (inject == null || inject.value().equals("")) {
-			return clazz.getName();
-		}
-		return inject.value();
-	}
+//	private static String getName(Class<?> clazz) {
+//		Inject inject = clazz.getAnnotation(Inject.class);
+//		if (inject == null || inject.value().equals("")) {
+//			return clazz.getName();
+//		}
+//		return inject.value();
+//	}
 
 	private static String[] getScanPackages() {
 		String cfgPackages = BEAN_CONFIG.getValue("inject.scan.packages");

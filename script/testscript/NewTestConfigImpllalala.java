@@ -25,7 +25,6 @@ public class NewTestConfigImpllalala implements TestConfigInterface {
 	@PostConstruct
 	public void init() {
 		LOGGER.info("执行了@PostConstruct");
-		
 	}
 	
 	public NewTestConfigImpllalala() {
@@ -34,7 +33,7 @@ public class NewTestConfigImpllalala implements TestConfigInterface {
 	
 	@Override
 	public void print() {
-		LOGGER.info("------------------------------------------------------------------");
+		LOGGER.info("ff------------------------------------------------------------------");
 		LOGGER.info("this class Name:{}", NewTestConfigImpllalala.class);
 		LOGGER.info("string:{} int:{} long:{} boolean:{}", this.stringValue, this.intValue, this.longValue, this.boolValue);
 		LOGGER.info("------------------------------------------------------------------");
