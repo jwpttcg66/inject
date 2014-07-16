@@ -10,11 +10,6 @@ import org.slf4j.LoggerFactory;
 import di.InjectContext;
 import di.utility.ClassUtils;
 
-/**
- * 脚本文件变动事件监听
- * @author 0x737263
- *
- */
 public class ScriptFileListener extends FileAlterationListenerAdaptor {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ScriptFileListener.class);
 

@@ -47,11 +47,10 @@ public class InjectContext {
 		try {
 			List<Class<?>> scanList = ScanClassUtils.scan(getScanPackages(), Inject.class);
 			for (Class<?> clazz : scanList) {
-				Object instance = clazz.newInstance();
-				
 				if (instanceMaps.containsKey(clazz)) {
 					throw new RuntimeException(String.format("有重复的注入名%s.", clazz));
 				}
+				Object instance = clazz.newInstance();
 				instanceMaps.put(clazz, instance);
 			}
 
@@ -79,16 +78,10 @@ public class InjectContext {
 	@SuppressWarnings("unchecked")
 	public static <T> T getBean(Class<T> clazz) {
 		for (Entry<Class<?>, Object> entry : instanceMaps.entrySet()) {
-			T value = (T) entry.getValue();
-			if (clazz.isInterface() && clazz.isAssignableFrom(value.getClass())) {
-				return value;
-			} else {
-				if (entry.getKey().equals(clazz)) {
-					return value;
-				}
+			if (compareClass(clazz, entry.getKey())) {
+				return (T) entry.getValue();
 			}
 		}
-
 		return null;
 	}
 
@@ -142,7 +135,6 @@ public class InjectContext {
 					}
 				}
 				
-				
 				return (T) instance;				
 			}
 		} catch (Exception ex) {
@@ -167,9 +159,10 @@ public class InjectContext {
 			return true;
 		}
 
-		Inject inject1 = clazz2.getAnnotation(Inject.class);
-		Inject inject2 = clazz1.getAnnotation(Inject.class);
-		if (inject1.value() == inject2.value()) {
+		Inject inject1 = clazz1.getAnnotation(Inject.class);
+		Inject inject2 = clazz2.getAnnotation(Inject.class);
+		
+		if (inject1 != null && inject2 != null && inject1.value() == inject2.value()) {
 			return true;
 		}
 		return false;
