@@ -1,23 +1,15 @@
 package di.utility;
 
-import java.io.File;
-import java.io.FileFilter;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ScanClassUtils {
-	private static final String CLASS_PATH = ScanClassUtils.class.getClassLoader().getResource("").getPath();
-	private static final String FILE_EXT = ".class";
-	private static final String BLANK = "";
-	private static final String DOT = ".";
+import net.sf.corn.cps.CPScanner;
+import net.sf.corn.cps.ClassFilter;
+import di.annotation.Inject;
 
-	private static FileFilter FILE_FILTER = new FileFilter() {
-		@Override
-		public boolean accept(File pathname) {
-			return pathname.getName().endsWith(FILE_EXT) || pathname.isDirectory();
-		}
-	};
+public class ScanClassUtils {
+
 
 	/**
 	 * 获取有带@Inject注解的类集合
@@ -25,47 +17,37 @@ public class ScanClassUtils {
 	 * @param annotation
 	 * @return
 	 */
-	public static List<Class<?>> scan(String[] packages, Class<? extends Annotation> annotation) {
-		List<Class<?>> classList = new ArrayList<Class<?>>();
-		for (String name : packages) {
-			File classFileDirectory = getScanClassFileDirectory(obtainFilePath(name));
-			scanFiles(classFileDirectory, classList, annotation);
+	@SuppressWarnings("unchecked")
+	public static <T> List<Class<T>> scan(String[] packages, Class<? extends Annotation> annotation, Class<?> interfaceClass) {
+		ClassFilter clazzFilter = new ClassFilter();
+		for (String packageName : packages) {
+			clazzFilter.packageName(packageName);
 		}
-		return classList;
-	}
 
-	private static void scanFiles(File file, List<Class<?>> classList, Class<? extends Annotation> annotation) {
-		if (file.isDirectory()) {
-			for (File f : file.listFiles(FILE_FILTER)) {
-				scanFiles(f, classList, annotation);
-			}
-		} else {
-			try {
-				final Class<?> clazz = getClass(file);
-				if (clazz != null && clazz.isAnnotationPresent(annotation)) {
-					classList.add(clazz);
-				}
-			} catch (ClassNotFoundException ex) {
-			}
+		if (annotation != null) {
+			clazzFilter.annotation(Inject.class);
+			clazzFilter.joinAnnotationsWithAnd();
 		}
-	}
+		
+		if (interfaceClass != null) {
+			clazzFilter.interfaceClass(interfaceClass);
+			clazzFilter.joinInterfacesWithAnd();
+		}
 
-	private static Class<?> getClass(File file) throws ClassNotFoundException {
-		final String packagePath = file.getAbsolutePath().substring(file.getAbsolutePath().indexOf(CLASS_PATH) + CLASS_PATH.length());
-		Class<?> clazz = Class.forName(getClassFullName(packagePath));
-		return clazz;
+		List<Class<?>> scanList = CPScanner.scanClasses(clazzFilter);
+		List<Class<T>> scanTList = new ArrayList<>();
+		for (Class<?> clazz : scanList) {
+			scanTList.add((Class<T>) clazz);
+		}
+		return scanTList;
 	}
-
-	private static String getClassFullName(String packagePath) {
-		return packagePath.replace(File.separator, DOT).replace(FILE_EXT, BLANK);
+	
+	public static <T> List<Class<T>> scan(String... packages) {
+		return scan(packages, null, null);
 	}
-
-	private static File getScanClassFileDirectory(String filePath) {
-		return new File(filePath);
+	
+	public static <T> List<Class<T>> scan(String packageName, Class<?> interfaceClass) {
+		return scan(new String[] { packageName }, null, interfaceClass);
 	}
-
-	private static String obtainFilePath(String packageName) {
-		final String oppositeFilePath = packageName.replace(DOT, File.separator);
-		return CLASS_PATH + oppositeFilePath;
-	}
+	
 }

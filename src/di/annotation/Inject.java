@@ -10,4 +10,6 @@ import java.lang.annotation.Target;
 public @interface Inject {
 
 	String value() default "";
+
+	int order() default 9999;
 }

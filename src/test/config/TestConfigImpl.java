@@ -4,10 +4,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import di.annotation.Config;
-import di.annotation.Inject;
-import di.annotation.PostConstruct;
+import di.annotation.PreLoad;
 
-@Inject
+//@Inject
 public class TestConfigImpl implements TestConfigInterface {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TestConfigImpl.class);
 
@@ -20,7 +19,7 @@ public class TestConfigImpl implements TestConfigInterface {
 	@Config("boolean.test")
 	public boolean boolValue;
 	
-	@PostConstruct
+	@PreLoad
 	public void init() {
 		LOGGER.info("执行了@PostConstruct");
 	}

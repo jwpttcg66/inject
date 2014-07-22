@@ -1,20 +1,23 @@
 package di;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import di.annotation.Inject;
-import di.annotation.PostConstruct;
+import di.annotation.PreLoad;
 import di.utility.ReflectUtil;
 import di.utility.ScanClassUtils;
 
@@ -26,8 +29,6 @@ public class InjectContext {
 	private static final Map<Class<?>, Set<Field>> clazzFieldMaps = new ConcurrentHashMap<>();
 	/** 实例类集合 key:类,value:实例 类*/
 	private static final Map<Class<?>, Object> instanceMaps = new ConcurrentHashMap<>();
-	
-	private static BeanConfig BEAN_CONFIG = new BeanConfig();
 	
 	private InjectContext() {
 	}
@@ -42,33 +43,40 @@ public class InjectContext {
 	 * @param fileName
 	 */
 	public static void initialize(String fileName) {
-		BEAN_CONFIG.initialize(fileName);
-
-		try {
-			List<Class<?>> scanList = ScanClassUtils.scan(getScanPackages(), Inject.class);
-			for (Class<?> clazz : scanList) {
+		BeanConfig.initialize(fileName);
+		
+		TreeMap<Integer, List<Class<?>>> sortScanList = getScanClazzMaps();
+		
+		List<Object> instanceList = new ArrayList<>();
+		for (List<Class<?>> clazzList : sortScanList.values()) {
+			for (Class<?> clazz : clazzList) {
 				if (instanceMaps.containsKey(clazz)) {
 					throw new RuntimeException(String.format("有重复的注入名%s.", clazz));
 				}
-				Object instance = clazz.newInstance();
-				instanceMaps.put(clazz, instance);
-			}
 
-			// 配置注入、引用注入
-			for (Object instance : instanceMaps.values()) {
-				injectInstance(instance);
+				try {
+					Object instance = clazz.newInstance();
+					instanceMaps.put(clazz, instance);
+					instanceList.add(instance);
+				} catch (Exception ex) {
+					throw new RuntimeException(ex);
+				}
 			}
-
-			// 执行初始化方法
-			for (Object instance : instanceMaps.values()) {
-				postConstruct(instance);
-			}
-		} catch (Exception ex) {
-			throw new RuntimeException(ex);
 		}
-		
+
+		// 配置注入、引用注入
+		for (Object instance : instanceList) {
+			injectInstance(instance);
+		}
+
+		// 执行初始化方法
+		for (Object instance : instanceList) {
+			injectPreload(instance);
+		}
+
 		LOGGER.info("注入初始化完成!");
 	}
+
 
 	/**
 	 * 获取bean
@@ -83,6 +91,37 @@ public class InjectContext {
 			}
 		}
 		return null;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public static <T> T getBean(String className) {
+		for (Entry<Class<?>, Object> entry : instanceMaps.entrySet()) {
+			if (entry.getKey().getSimpleName().equals(className)) {
+				return (T) entry.getValue();
+			}
+			
+			Inject inject = entry.getKey().getAnnotation(Inject.class);
+			if (inject != null && inject.value().equals(className)) {
+				return (T) entry.getValue();
+			}
+		}
+		return null;
+	}
+ 	
+	/**
+	 * 
+	 * @param clazz
+	 * @return
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> List<T> getBeanOfType(Class<T> clazz) {
+		List<T> list = new ArrayList<>();
+		for (Entry<Class<?>, Object> entry : instanceMaps.entrySet()) {
+			if (compareClass(clazz, entry.getKey())) {
+				list.add((T) entry.getValue());
+			}
+		}
+		return list;
 	}
 
 	/**
@@ -113,7 +152,7 @@ public class InjectContext {
 				
 				Object instance = clazz.newInstance();
 				injectInstance(instance);
-				postConstruct(instance);
+				injectPreload(instance);
 
 				// 替换后，原来的类有没有消失？
 				instanceMaps.put(clazz, instance);
@@ -126,12 +165,6 @@ public class InjectContext {
 							Object tmpInstance = getBean(entry.getKey());
 							injectField(tmpInstance, f);
 						}
-					}
-				}
-				
-				if (LOGGER.isDebugEnabled()) {
-					for (Class<?> cls : instanceMaps.keySet()) {
-						LOGGER.debug("inject instance:{}", cls);
 					}
 				}
 				
@@ -150,26 +183,32 @@ public class InjectContext {
 		if (clazz1.getName().equals(clazz2.getName())) {
 			return true;
 		}
-
-		if (clazz1.isInterface() && clazz1.isAssignableFrom(clazz2)) {
-			return true;
+		
+		if (clazz1.isInterface() || Modifier.isAbstract(clazz1.getModifiers())) {
+			if (clazz1.isAssignableFrom(clazz2)) {
+				return true;
+			}
+			return false;
 		}
-
-		if (clazz2.isInterface() && clazz2.isAssignableFrom(clazz1)) {
-			return true;
+		
+		if (clazz2.isInterface() || Modifier.isAbstract(clazz2.getModifiers())) {
+			if (clazz2.isAssignableFrom(clazz1)) {
+				return true;
+			}
+			return false;
 		}
 
 		Inject inject1 = clazz1.getAnnotation(Inject.class);
 		Inject inject2 = clazz2.getAnnotation(Inject.class);
 		
-		if (inject1 != null && inject2 != null && inject1.value() == inject2.value()) {
+		if (inject1.value().length() > 0 && inject2.value().length() > 0 && inject1.value() == inject2.value()) {
 			return true;
 		}
 		return false;
 	}
 
 	private static String[] getScanPackages() {
-		String cfgPackages = BEAN_CONFIG.getValue("inject.scan.packages");
+		String cfgPackages = BeanConfig.getValue("inject.scan.packages");
 		String[] packageArray;
 		if (cfgPackages != null && !cfgPackages.isEmpty()) {
 			packageArray = cfgPackages.split(",");
@@ -184,7 +223,7 @@ public class InjectContext {
 	 * @param instance
 	 */
 	private static void injectInstance(Object instance) {
-		BEAN_CONFIG.injectConfig(instance); // 配置注入
+		BeanConfig.injectConfig(instance); // 配置注入
 		Collection<Field> fields = getInjectFields(instance.getClass());
 		for (Field field : fields) {
 			injectField(instance, field);
@@ -199,19 +238,16 @@ public class InjectContext {
 	private static void injectField(Object instance, Field field) {
 		try {
 			Class<?> typeClazz = field.getType();
-			Object fieldInstance = getBean(typeClazz);
-			set2Field(instance, field, fieldInstance);
+			Inject inject = field.getAnnotation(Inject.class);
+			Object fieldInstance = inject.value().equals("") ? getBean(typeClazz) : getBean(inject.value());
+			if (fieldInstance == null) {
+				LOGGER.warn("{} -- filed:{} inject value is null.", instance.getClass(), field.getName());
+			}
+
+			field.setAccessible(true);
+			field.set(instance, fieldInstance);
 		} catch (Exception ex) {
 			throw new RuntimeException(ex);
-		}
-	}
-	
-	private static void set2Field(Object instance, Field field, Object value) {
-		try {
-			field.setAccessible(true);
-			field.set(instance, value);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
 		}
 	}
 		
@@ -224,11 +260,42 @@ public class InjectContext {
 		return fields;
 	}
 	
-	private static void postConstruct(Object instance) throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
-		for (Method method : instance.getClass().getMethods()) {
-			if (method.isAnnotationPresent(PostConstruct.class)) {
-				method.invoke(instance);
+	private static TreeMap<Integer, List<Class<?>>> getScanClazzMaps() {
+		List<Class<Object>> scanList = ScanClassUtils.scan(getScanPackages(), Inject.class, null);
+
+		TreeMap<Integer, List<Class<?>>> preloadMaps = new TreeMap<>(new Comparator<Integer>() {
+			@Override
+			public int compare(Integer key0, Integer key1) {
+				return key0.compareTo(key1);
 			}
+		});
+
+		for (Class<Object> clazz : scanList) {
+			Inject inject = clazz.getAnnotation(Inject.class);
+			List<Class<?>> instanceList = preloadMaps.get(inject.order());
+			if (instanceList == null) {
+				instanceList = new ArrayList<>();
+				preloadMaps.put(inject.order(), instanceList);
+			}
+			instanceList.add(clazz);
+		}
+		return preloadMaps;
+	}
+	
+	private static void injectPreload(Object instance) {
+		try {
+			for (Class<?> clazz = instance.getClass(); clazz != Object.class; clazz = clazz.getSuperclass()) {
+				Method[] methodArray = clazz.getDeclaredMethods();
+				for (Method method : methodArray) {
+					if (method.isAnnotationPresent(PreLoad.class)) {
+						method.setAccessible(true);
+						method.invoke(instance);
+					}
+				}
+			}
+			
+		} catch (Exception ex) {
+			throw new RuntimeException(ex);
 		}
 	}
 	

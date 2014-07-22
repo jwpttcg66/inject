@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import di.annotation.Config;
 import di.annotation.Inject;
-import di.annotation.PostConstruct;
+import di.annotation.PreLoad;
 
 @Inject
 public class InjectMonitor {
@@ -24,7 +24,7 @@ public class InjectMonitor {
 	@Config("inject.monitor.path")
 	private String path;
 
-	@PostConstruct
+	@PreLoad
 	public void init() {
 		try {
 			monitor = new FileAlterationMonitor(this.interval);

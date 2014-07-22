@@ -20,14 +20,14 @@ public class BeanConfig {
 	 * 初始化
 	 * @param fileName	文件名
 	 */
-	public void initialize(String fileName) {
+	public static void initialize(String fileName) {
 		try {
 			InputStream is = BeanConfig.class.getClassLoader().getResourceAsStream(fileName);
 			if (is == null) {
 				LOGGER.error("[{}] file path not found.", fileName);
 				return;
 			}
-			props.load(this.getClass().getClassLoader().getResourceAsStream(fileName));
+			props.load(BeanConfig.class.getClassLoader().getResourceAsStream(fileName));
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -38,15 +38,23 @@ public class BeanConfig {
 	 * @param key
 	 * @return
 	 */
-	public String getValue(String key) {
+	public static String getValue(String key) {
 		return props.getProperty(key);
+	}
+	
+	public static Integer getInt(String key) {
+		return Integer.valueOf(props.getProperty(key));
+	}
+
+	public static Boolean getBool(String key) {
+		return Boolean.valueOf(props.getProperty(key));
 	}
 
 	/**
 	 * 配置注入
 	 * @param object	已实例化的对象
 	 */
-	public void injectConfig(Object object) {
+	public static void injectConfig(Object object) {
 		if (object == null) {
 			return;
 		}
@@ -58,7 +66,7 @@ public class BeanConfig {
 				String key = annotation.value().isEmpty() ? field.getName() : annotation.value();
 				String value = props.getProperty(key);
 				if (value == null || value.isEmpty()) {
-					throw new RuntimeException(String.format("key:'%s' not found. from properties file.", key));
+					throw new RuntimeException(String.format("class:[%s] key:['%s'] not found. from properties file.", key, object.getClass()));
 				}
 
 				field.setAccessible(true);
